@@ -144,11 +144,7 @@ app.post("/comments", async function (request, response) {
 
 ;(async () => {
   const response = await notion.search({
-    query: 'Feature requests',
-    filter: {
-      value: 'database',
-      property: 'object'
-    },
+    query: '',
     sort: {
       direction: 'ascending',
       timestamp: 'last_edited_time'
