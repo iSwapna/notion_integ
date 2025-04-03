@@ -1,0 +1,35 @@
+{
+    "name": "notion-integration",
+    "version": "1.0.0",
+    "main": "server.js",
+    "license": "MIT",
+    "scripts": {
+      "prettify": "prettier -l --write \"**/*.js\"",
+      "test": "jest",
+      "dev": "nodemon -L server.js"
+    },
+    "dependencies": {
+      "@notionhq/client": "^2.2.7",
+      "dotenv": "^16.3.1",
+      "express": "^4.18.2"
+    },
+    "engines": {
+        "node": "18.x"
+    },
+    "resolutions": {
+      "ansi-regex": "5.0.1"
+    },
+    "prettier": {
+      "trailingComma": "all",
+      "tabWidth": 4,
+      "useTabs": false,
+      "semi": true,
+      "singleQuote": true
+    },
+    "devDependencies": {
+      "jest": "^29.3.1",
+      "nodemon": "^2.0.20",
+      "prettier": "^2.7.1"
+    }
+  }
+  
