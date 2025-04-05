@@ -1,159 +1,70 @@
-require("dotenv").config()
-const express = require("express")
-const app = express()
+// server.js - Express server for handling Notion API requests
+const express = require('express');
+const axios = require('axios');
+const path = require('path');
+const dotenv = require('dotenv');
+const bodyParser = require('body-parser');
 
-const { Client } = require("@notionhq/client")
-const notion = new Client({ auth: process.env.NOTION_TOKEN })
+// Load environment variables
+dotenv.config();
 
-console.log(process.env.NOTION_TOKEN)
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-// http://expressjs.com/en/starter/static-files.html
-app.use(express.static("public"))
-app.use(express.json()) // for parsing application/json
+// Middleware
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(bodyParser.json());
 
-// http://expressjs.com/en/starter/basic-routing.html
-app.get("/", function (request, response) {
-  response.sendFile(__dirname + "/views/index.html")
-})
+// Serve the main HTML page
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '/views', 'index.html'));
+});
 
-// Create new database. The page ID is set in the environment variables.
-app.post("/databases", async function (request, response) {
-  const pageId = process.env.NOTION_PAGE_ID
-  const title = request.body.dbName
-
+// API endpoint for Notion search
+app.post('/api/notion/search', async (req, res) => {
   try {
-    const newDb = await notion.databases.create({
-      parent: {
-        type: "page_id",
-        page_id: pageId,
-      },
-      title: [
-        {
-          type: "text",
-          text: {
-            content: title,
-          },
-        },
-      ],
-      properties: {
-        Name: {
-          title: {},
-        },
-      },
-    })
-    response.json({ message: "success!", data: newDb })
+    const { query = '', pageSize = 10 } = req.body;
+    
+    // Create request payload
+    // If query is empty, we'll still search but will get all accessible content
+    const payload = {
+      page_size: pageSize
+    };
+    
+    // Only add query parameter if it's not empty
+    if (query.trim() !== '') {
+      payload.query = query;
+    }
+    
+    // Make request to Notion API
+    const response = await axios.post(
+      'https://api.notion.com/v1/search', 
+      payload,
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.NOTION_TOKEN}`,
+          'Notion-Version': '2022-06-28',
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    // Return the search results
+    res.json(response.data);
+    
   } catch (error) {
-    response.json({ message: "error", error })
+    console.error('Error searching Notion:', error.response?.data || error.message);
+    
+    // Send appropriate error response
+    res.status(error.response?.status || 500).json({
+      error: 'Failed to search Notion',
+      details: error.response?.data?.message || error.message
+    });
   }
-})
+});
 
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT} `);
+});
 
-// Create new page. The database ID is provided in the web form.
-app.post("/pages", async function (request, response) {
-  const { dbID, pageName, header } = request.body
-
-  try {
-    const newPage = await notion.pages.create({
-      parent: {
-        type: "database_id",
-        database_id: dbID,
-      },
-      properties: {
-        Name: {
-          title: [
-            {
-              text: {
-                content: pageName,
-              },
-            },
-          ],
-        },
-      },
-      children: [
-        {
-          object: "block",
-          heading_2: {
-            rich_text: [
-              {
-                text: {
-                  content: header,
-                },
-              },
-            ],
-          },
-        },
-      ],
-    })
-    response.json({ message: "success!", data: newPage })
-  } catch (error) {
-    response.json({ message: "error", error })
-  }
-})
-
-// Create new block (page content). The page ID is provided in the web form.
-app.post("/blocks", async function (request, response) {
-  const { pageID, content } = request.body
-
-  try {
-    const newBlock = await notion.blocks.children.append({
-      block_id: pageID, // a block ID can be a page ID
-      children: [
-        {
-          // Use a paragraph as a default but the form or request can be updated to allow for other block types: https://developers.notion.com/reference/block#keys
-          paragraph: {
-            rich_text: [
-              {
-                text: {
-                  content: content,
-                },
-              },
-            ],
-          },
-        },
-      ],
-    })
-    response.json({ message: "success!", data: newBlock })
-  } catch (error) {
-    response.json({ message: "error", error })
-  }
-})
-
-// Create new page comments. The page ID is provided in the web form.
-app.post("/comments", async function (request, response) {
-  const { pageID, comment } = request.body
-
-  try {
-    const newComment = await notion.comments.create({
-      parent: {
-        page_id: pageID,
-      },
-      rich_text: [
-        {
-          text: {
-            content: comment,
-          },
-        },
-      ],
-    })
-    response.json({ message: "success!", data: newComment })
-  } catch (error) {
-    response.json({ message: "error", error })
-  }
-})
-
-
-;(async () => {
-  const response = await notion.search({
-    query: '',
-    sort: {
-      direction: 'ascending',
-      timestamp: 'last_edited_time'
-    },
-  });
-  console.log(response);
-})();
-
-// listen for requests :)
-const listener = app.listen(3000, function () {
-  console.log("Your app is listening on port " + listener.address().port)
-})
